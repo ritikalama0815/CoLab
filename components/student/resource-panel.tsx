@@ -103,7 +103,19 @@ export function ResourcePanel({
   const [subTitle, setSubTitle] = useState("")
   const [subLink, setSubLink] = useState("")
   const [subNotes, setSubNotes] = useState("")
+  const [subFile, setSubFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const [showDocLog, setShowDocLog] = useState(false)
+  const [docTitle, setDocTitle] = useState("")
+  const [docUrl, setDocUrl] = useState("")
+  const [docKind, setDocKind] = useState("docs")
+  const [docMins, setDocMins] = useState("")
+  const [docLinesAdd, setDocLinesAdd] = useState("")
+  const [docLinesRem, setDocLinesRem] = useState("")
+  const [docSaving, setDocSaving] = useState(false)
+  const [docErr, setDocErr] = useState<string | null>(null)
+  const [submitErr, setSubmitErr] = useState<string | null>(null)
 
   const addResource = async () => {
     if (!title.trim() || !url.trim()) return
@@ -138,22 +150,83 @@ export function ResourcePanel({
   const submitWork = async () => {
     if (!subTitle.trim()) return
     setSubmitting(true)
+    setSubmitErr(null)
     try {
-      const supabase = createClient()
-      await supabase.from("submissions").insert({
-        group_id: groupId,
-        submitted_by: userId,
-        title: subTitle.trim(),
-        link_url: subLink.trim() || null,
-        notes: subNotes.trim() || null,
-      })
+      if (subFile) {
+        const fd = new FormData()
+        fd.append("file", subFile)
+        fd.append("groupId", groupId)
+        fd.append("title", subTitle.trim())
+        if (subNotes.trim()) fd.append("notes", subNotes.trim())
+        if (subLink.trim()) fd.append("linkUrl", subLink.trim())
+        const res = await fetch("/api/submissions/upload", { method: "POST", body: fd })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setSubmitErr(
+            typeof data.error === "string"
+              ? data.error
+              : "Upload failed. Ensure the submission-files bucket exists (see project SQL scripts)."
+          )
+          return
+        }
+      } else {
+        const supabase = createClient()
+        const { error } = await supabase.from("submissions").insert({
+          group_id: groupId,
+          submitted_by: userId,
+          title: subTitle.trim(),
+          link_url: subLink.trim() || null,
+          notes: subNotes.trim() || null,
+        })
+        if (error) {
+          setSubmitErr(error.message)
+          return
+        }
+      }
       setSubTitle("")
       setSubLink("")
       setSubNotes("")
+      setSubFile(null)
       setShowSubmit(false)
       router.refresh()
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const saveDocLog = async () => {
+    if (!docTitle.trim()) return
+    setDocSaving(true)
+    setDocErr(null)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from("docs_activity").insert({
+        group_id: groupId,
+        user_id: userId,
+        title: docTitle.trim(),
+        doc_url: docUrl.trim() || null,
+        doc_kind: docKind,
+        minutes_spent: Math.max(0, parseInt(docMins, 10) || 0),
+        lines_added: Math.max(0, parseInt(docLinesAdd, 10) || 0),
+        lines_removed: Math.max(0, parseInt(docLinesRem, 10) || 0),
+      })
+      if (error) {
+        setDocErr(
+          error.message.includes("docs_activity")
+            ? "Docs logging is not set up yet. Run scripts/add_docs_activity_and_storage.sql in Supabase."
+            : error.message
+        )
+        return
+      }
+      setDocTitle("")
+      setDocUrl("")
+      setDocMins("")
+      setDocLinesAdd("")
+      setDocLinesRem("")
+      setShowDocLog(false)
+      router.refresh()
+    } finally {
+      setDocSaving(false)
     }
   }
 
@@ -180,14 +253,34 @@ export function ResourcePanel({
             variant="outline"
             size="sm"
             className="gap-1.5 text-xs h-8"
-            onClick={() => { setShowSubmit(!showSubmit); setShowAdd(false) }}
+            onClick={() => {
+              setShowSubmit(!showSubmit)
+              setShowAdd(false)
+              setShowDocLog(false)
+            }}
           >
             <FileUp className="h-3 w-3" /> Submit
           </Button>
           <Button
+            variant="outline"
             size="sm"
             className="gap-1.5 text-xs h-8"
-            onClick={() => { setShowAdd(!showAdd); setShowSubmit(false) }}
+            onClick={() => {
+              setShowDocLog(!showDocLog)
+              setShowAdd(false)
+              setShowSubmit(false)
+            }}
+          >
+            <FileText className="h-3 w-3" /> Log Docs
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 text-xs h-8"
+            onClick={() => {
+              setShowAdd(!showAdd)
+              setShowSubmit(false)
+              setShowDocLog(false)
+            }}
           >
             <Plus className="h-3 w-3" /> Add Link
           </Button>
@@ -234,15 +327,34 @@ export function ResourcePanel({
       {showSubmit && (
         <Card className="border-primary/20 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Submit Work</CardTitle>
+            <CardTitle className="text-sm">Submit work</CardTitle>
+            <p className="text-xs text-muted-foreground font-normal">
+              Upload a file (ZIP, PDF, slides export, etc.) or submit a link only.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {submitErr && (
+              <p className="text-xs text-destructive">{submitErr}</p>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Title</Label>
               <Input className="h-9" placeholder="Submission title" value={subTitle} onChange={(e) => setSubTitle(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Link</Label>
+              <Label className="text-xs font-medium">File (optional if you use link only)</Label>
+              <Input
+                className="h-9 cursor-pointer text-sm file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
+                type="file"
+                onChange={(e) => setSubFile(e.target.files?.[0] ?? null)}
+              />
+              {subFile && (
+                <p className="text-[11px] text-muted-foreground">
+                  Selected: {subFile.name} ({(subFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Link (optional)</Label>
               <Input className="h-9" placeholder="https://..." value={subLink} onChange={(e) => setSubLink(e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -250,10 +362,85 @@ export function ResourcePanel({
               <Input className="h-9" placeholder="Any notes..." value={subNotes} onChange={(e) => setSubNotes(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" className="h-8 text-xs" onClick={submitWork} disabled={submitting}>
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                onClick={submitWork}
+                disabled={submitting || !subTitle.trim()}
+              >
                 {submitting ? "Submitting..." : "Submit"}
               </Button>
-              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowSubmit(false)}>Cancel</Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setShowSubmit(false); setSubFile(null); setSubmitErr(null) }}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Self-reported Google Docs / Slides work (feeds instructor reports) */}
+      {showDocLog && (
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Log Google Docs / Slides work</CardTitle>
+            <p className="text-xs text-muted-foreground font-normal">
+              Enter time and line edits you contributed so the instructor report can reflect writing and slides work, not just GitHub.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {docErr && (
+              <p className="text-xs text-destructive">{docErr}</p>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Title</Label>
+                <Input className="h-9" placeholder="e.g. Final report" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Doc URL (optional)</Label>
+                <Input className="h-9" placeholder="https://docs.google.com/..." value={docUrl} onChange={(e) => setDocUrl(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                value={docKind}
+                onChange={(e) => setDocKind(e.target.value)}
+              >
+                <option value="docs">Google Doc</option>
+                <option value="slides">Google Slides</option>
+                <option value="sheets">Google Sheets</option>
+                <option value="other">Other</option>
+              </select>
+              <Input
+                className="h-8 w-24 text-xs"
+                type="number"
+                min={0}
+                placeholder="Min"
+                value={docMins}
+                onChange={(e) => setDocMins(e.target.value)}
+              />
+              <span className="text-xs text-muted-foreground">minutes</span>
+              <Input
+                className="h-8 w-24 text-xs"
+                type="number"
+                min={0}
+                placeholder="+Lines"
+                value={docLinesAdd}
+                onChange={(e) => setDocLinesAdd(e.target.value)}
+              />
+              <Input
+                className="h-8 w-24 text-xs"
+                type="number"
+                min={0}
+                placeholder="−Lines"
+                value={docLinesRem}
+                onChange={(e) => setDocLinesRem(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-8 text-xs" onClick={saveDocLog} disabled={docSaving || !docTitle.trim()}>
+                {docSaving ? "Saving..." : "Save log"}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setShowDocLog(false); setDocErr(null) }}>Cancel</Button>
             </div>
           </CardContent>
         </Card>

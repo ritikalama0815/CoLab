@@ -11,6 +11,7 @@ import {
 import Link from "next/link"
 import { getGroupColor } from "@/lib/group-colors"
 import { InstructorQuestionCard } from "@/components/instructor/instructor-question-card"
+import { ReportGenerator } from "@/components/groups/report-generator"
 
 interface Props {
   params: Promise<{ projectId: string; groupId: string }>
@@ -55,6 +56,17 @@ export default async function InstructorGroupPage({ params }: Props) {
     .select("*, profiles!submissions_submitted_by_fkey ( full_name, email )")
     .eq("group_id", groupId)
     .order("created_at", { ascending: false })
+
+  const { count: docsActivityCount, error: docsCountErr } = await supabase
+    .from("docs_activity")
+    .select("*", { count: "exact", head: true })
+    .eq("group_id", groupId)
+
+  const docsLogged = docsCountErr ? 0 : docsActivityCount ?? 0
+  const hasReportData =
+    (commits?.length ?? 0) > 0 ||
+    (submissions?.length ?? 0) > 0 ||
+    docsLogged > 0
 
   const { data: questions } = await supabase
     .from("questions")
@@ -122,6 +134,13 @@ export default async function InstructorGroupPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      <ReportGenerator
+        groupId={groupId}
+        groupName={group.name}
+        hasData={hasReportData}
+        canViewReports
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Members */}

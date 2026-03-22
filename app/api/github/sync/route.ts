@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
             message: commit.commit.message.slice(0, 500), // Truncate long messages
             author_id: authorId,
             github_username: commit.author?.login || commit.commit.author.name,
+            author_github_username: commit.author?.login || null,
             additions,
             deletions,
             committed_at: commit.commit.author.date,
