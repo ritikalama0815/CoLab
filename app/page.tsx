@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Shuffle from './letters';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { GitBranch, Users, FileText, BarChart3, Shield, Zap, Sparkles } from "lucide-react"
@@ -43,17 +44,30 @@ export default function LandingPage() {
               <Sparkles className="h-4 w-4" />
               Built for fair group grading
             </div>
-            <h1 className="hero-gradient-text text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Fair Grading for Group Projects
-            </h1>
+              <Shuffle
+                    text="Fair Grading for Group Projects"
+                    shuffleDirection="right"
+                    duration={0.35}
+                    animationMode="evenodd"
+                    shuffleTimes={1}
+                    ease="power3.out"
+                    stagger={0.03}
+                    threshold={0.1}
+                    triggerOnce={true}
+                    triggerOnHover
+                    respectReducedMotion={true}
+                    loop={false}
+                    loopDelay={0}
+                  />
+
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground lg:mx-0">
-              Track individual contributions in university group projects with AI-powered analytics.
-              Connect GitHub and Google Docs to measure and visualize each team member&apos;s work — in rich purple clarity.
+              tired of working more than everyone else but still getting same score as them? FairGroup is here to save the day.
+              Track and visualize each team member&apos;s work, .
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
               <Link href="/auth/get-started">
                 <Button variant="hero" size="lg" className="min-w-[180px] rounded-full px-8">
-                  Start Free Trial
+                  Sign Up
                 </Button>
               </Link>
               <Link href="#features">
@@ -73,9 +87,6 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-foreground">Everything You Need</h2>
-            <p className="mt-4 text-muted-foreground">
-              Comprehensive tools for tracking, analyzing, and reporting group contributions
-            </p>
           </div>
           <StaggerChildren className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <StaggerItem>
@@ -114,7 +125,7 @@ export default function LandingPage() {
                   </div>
                   <CardTitle className="mt-4 text-foreground">Visual Analytics</CardTitle>
                   <CardDescription>
-                    Interactive charts and dashboards showing contribution trends over time
+                    Interactive charts and dashboards showing contribution of each member
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -126,9 +137,9 @@ export default function LandingPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[oklch(0.72_0.14_310_/_0.2)]">
                     <Zap className="h-6 w-6 text-accent-foreground" />
                   </div>
-                  <CardTitle className="mt-4 text-foreground">AI-Powered Insights</CardTitle>
+                  <CardTitle className="mt-4 text-foreground">AI Chatbots</CardTitle>
                   <CardDescription>
-                    Get automated summaries and fair contribution scores using advanced AI analysis
+                    AI chatbot will help you to plan for the project!
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -142,7 +153,7 @@ export default function LandingPage() {
                   </div>
                   <CardTitle className="mt-4 text-foreground">Teacher-led groups</CardTitle>
                   <CardDescription>
-                    Instructors create groups and add students — clear roles and transparent collaboration
+                    Instructors create groups and add students creating transparent collaboration
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -165,63 +176,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="relative z-10 px-6 py-24">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-foreground">How It Works</h2>
-            <p className="mt-4 text-muted-foreground">
-              Teachers set up the roster; students connect tools and ship work
-            </p>
-          </div>
-          <div className="mt-16 grid gap-12 sm:grid-cols-3">
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-[oklch(0.45_0.2_285)] text-lg font-bold text-primary-foreground shadow-lg shadow-primary/25">
-                1
-              </div>
-              <h3 className="mt-4 font-semibold text-foreground">Create a group</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Instructors create the project group and add students by email
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-[oklch(0.45_0.2_285)] text-lg font-bold text-primary-foreground shadow-lg shadow-primary/25">
-                2
-              </div>
-              <h3 className="mt-4 font-semibold text-foreground">Connect sources</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Link GitHub and Google Docs to start tracking contributions
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-[oklch(0.45_0.2_285)] text-lg font-bold text-primary-foreground shadow-lg shadow-primary/25">
-                3
-              </div>
-              <h3 className="mt-4 font-semibold text-foreground">View insights</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Track contributions in real time and generate fair reports
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <section className="relative z-10 border-t border-primary/15 bg-linear-to-br from-primary via-[oklch(0.48_0.22_300)] to-[oklch(0.42_0.2_285)] px-6 py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-bold text-primary-foreground">
-            Ready to Track Contributions Fairly?
+            Do you need fair grading?
           </h2>
           <p className="mt-4 text-primary-foreground/85">
             Join students and instructors using FairGroup for transparent group work
           </p>
-          <Link href="/auth/get-started">
-            <Button
-              size="lg"
-              variant="secondary"
-              className="mt-8 rounded-full border-0 bg-white/95 px-8 text-primary shadow-xl hover:bg-white"
-            >
-              Get Started for Free
-            </Button>
-          </Link>
         </div>
       </section>
 
@@ -233,7 +196,7 @@ export default function LandingPage() {
             </div>
             <span className="font-medium text-foreground">FairGroup</span>
           </div>
-          <p className="text-sm text-muted-foreground">Built for HackKU 2025</p>
+          <p className="text-sm text-muted-foreground">TruHacks 2026</p>
         </div>
       </footer>
     </div>
