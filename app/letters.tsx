@@ -1,413 +1,195 @@
 'use client';
-import React, { useRef, useEffect, useState, useMemo, JSX } from 'react';
+
+import { ElementType, useEffect, useRef, useState, createElement, useMemo, useCallback } from 'react';
 import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { SplitText as GSAPSplitText } from 'gsap/SplitText';
-import { useGSAP } from '@gsap/react';
 import './globals.css';
 
-gsap.registerPlugin(ScrollTrigger, GSAPSplitText, useGSAP);
-
-export interface ShuffleProps {
-  text: string;
+interface TextTypeProps {
   className?: string;
-  style?: React.CSSProperties;
-  shuffleDirection?: 'left' | 'right' | 'up' | 'down';
-  duration?: number;
-  maxDelay?: number;
-  ease?: string | ((t: number) => number);
-  threshold?: number;
-  rootMargin?: string;
-  tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span';
-  textAlign?: React.CSSProperties['textAlign'];
-  onShuffleComplete?: () => void;
-  shuffleTimes?: number;
-  animationMode?: 'random' | 'evenodd';
+  showCursor?: boolean;
+  hideCursorWhileTyping?: boolean;
+  cursorCharacter?: string | React.ReactNode;
+  cursorBlinkDuration?: number;
+  cursorClassName?: string;
+  text: string | string[];
+  as?: ElementType;
+  typingSpeed?: number;
+  initialDelay?: number;
+  pauseDuration?: number;
+  deletingSpeed?: number;
   loop?: boolean;
-  loopDelay?: number;
-  stagger?: number;
-  scrambleCharset?: string;
-  colorFrom?: string;
-  colorTo?: string;
-  triggerOnce?: boolean;
-  respectReducedMotion?: boolean;
-  triggerOnHover?: boolean;
+  textColors?: string[];
+  variableSpeed?: { min: number; max: number };
+  onSentenceComplete?: (sentence: string, index: number) => void;
+  startOnVisible?: boolean;
+  reverseMode?: boolean;
 }
 
-const Shuffle: React.FC<ShuffleProps> = ({
+const TextType = ({
   text,
+  as: Component = 'div',
+  typingSpeed = 50,
+  initialDelay = 0,
+  pauseDuration = 2000,
+  deletingSpeed = 30,
+  loop = true,
   className = '',
-  style = {},
-  shuffleDirection = 'right',
-  duration = 0.35,
-  maxDelay = 0,
-  ease = 'power3.out',
-  threshold = 0.1,
-  rootMargin = '-100px',
-  tag = 'p',
-  textAlign = 'center',
-  onShuffleComplete,
-  shuffleTimes = 1,
-  animationMode = 'evenodd',
-  loop = false,
-  loopDelay = 0,
-  stagger = 0.03,
-  scrambleCharset = '',
-  colorFrom,
-  colorTo,
-  triggerOnce = true,
-  respectReducedMotion = true,
-  triggerOnHover = true
-}) => {
-  const ref = useRef<HTMLElement>(null);
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [ready, setReady] = useState(false);
+  showCursor = true,
+  hideCursorWhileTyping = false,
+  cursorCharacter = '|',
+  cursorClassName = '',
+  cursorBlinkDuration = 0.5,
+  textColors = [],
+  variableSpeed,
+  onSentenceComplete,
+  startOnVisible = false,
+  reverseMode = false,
+  ...props
+}: TextTypeProps & React.HTMLAttributes<HTMLElement>) => {
+  const [displayedText, setDisplayedText] = useState('');
+  const [currentCharIndex, setCurrentCharIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(!startOnVisible);
+  const cursorRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
 
-  const splitRef = useRef<GSAPSplitText | null>(null);
-  const wrappersRef = useRef<HTMLElement[]>([]);
-  const tlRef = useRef<gsap.core.Timeline | null>(null);
-  const playingRef = useRef(false);
-  const hoverHandlerRef = useRef<((e: Event) => void) | null>(null);
+  const textArray = useMemo(() => (Array.isArray(text) ? text : [text]), [text]);
+
+  const getRandomSpeed = useCallback(() => {
+    if (!variableSpeed) return typingSpeed;
+    const { min, max } = variableSpeed;
+    return Math.random() * (max - min) + min;
+  }, [variableSpeed, typingSpeed]);
+
+  const getCurrentTextColor = () => {
+    if (textColors.length === 0) return 'inherit';
+    return textColors[currentTextIndex % textColors.length];
+  };
 
   useEffect(() => {
-    if ('fonts' in document) {
-      if (document.fonts.status === 'loaded') setFontsLoaded(true);
-      else document.fonts.ready.then(() => setFontsLoaded(true));
-    } else setFontsLoaded(true);
-  }, []);
+    if (!startOnVisible || !containerRef.current) return;
 
-  const scrollTriggerStart = useMemo(() => {
-    const startPct = (1 - threshold) * 100;
-    const mm = /^(-?\d+(?:\.\d+)?)(px|em|rem|%)?$/.exec(rootMargin || '');
-    const mv = mm ? parseFloat(mm[1]) : 0;
-    const mu = mm ? mm[2] || 'px' : 'px';
-    const sign = mv === 0 ? '' : mv < 0 ? `-=${Math.abs(mv)}${mu}` : `+=${mv}${mu}`;
-    return `top ${startPct}%${sign}`;
-  }, [threshold, rootMargin]);
-
-  useGSAP(
-    () => {
-      if (!ref.current || !text || !fontsLoaded) return;
-      if (respectReducedMotion && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        onShuffleComplete?.();
-        return;
-      }
-
-      const el = ref.current as HTMLElement;
-      const start = scrollTriggerStart;
-
-      const removeHover = () => {
-        if (hoverHandlerRef.current && ref.current) {
-          ref.current.removeEventListener('mouseenter', hoverHandlerRef.current);
-          hoverHandlerRef.current = null;
-        }
-      };
-
-      const teardown = () => {
-        if (tlRef.current) {
-          tlRef.current.kill();
-          tlRef.current = null;
-        }
-        if (wrappersRef.current.length) {
-          wrappersRef.current.forEach(wrap => {
-            const inner = wrap.firstElementChild as HTMLElement | null;
-            const orig = inner?.querySelector('[data-orig="1"]') as HTMLElement | null;
-            if (orig && wrap.parentNode) wrap.parentNode.replaceChild(orig, wrap);
-          });
-          wrappersRef.current = [];
-        }
-        try {
-          splitRef.current?.revert();
-        } catch {}
-        splitRef.current = null;
-        playingRef.current = false;
-      };
-
-      const build = () => {
-        teardown();
-
-        splitRef.current = new GSAPSplitText(el, {
-          type: 'chars',
-          charsClass: 'shuffle-char',
-          wordsClass: 'shuffle-word',
-          linesClass: 'shuffle-line',
-          smartWrap: true,
-          reduceWhiteSpace: false
-        });
-
-        const chars = (splitRef.current.chars || []) as HTMLElement[];
-        wrappersRef.current = [];
-
-        const rolls = Math.max(1, Math.floor(shuffleTimes));
-        const rand = (set: string) => set.charAt(Math.floor(Math.random() * set.length)) || '';
-
-        chars.forEach(ch => {
-          const parent = ch.parentElement;
-          if (!parent) return;
-
-          const w = ch.getBoundingClientRect().width;
-          const h = ch.getBoundingClientRect().height;
-          if (!w) return;
-
-          const wrap = document.createElement('span');
-          Object.assign(wrap.style, {
-            display: 'inline-block',
-            overflow: 'hidden',
-            width: w + 'px',
-            height: shuffleDirection === 'up' || shuffleDirection === 'down' ? h + 'px' : 'auto',
-            verticalAlign: 'bottom'
-          });
-
-          const inner = document.createElement('span');
-          Object.assign(inner.style, {
-            display: 'inline-block',
-            whiteSpace: shuffleDirection === 'up' || shuffleDirection === 'down' ? 'normal' : 'nowrap',
-            willChange: 'transform'
-          });
-
-          parent.insertBefore(wrap, ch);
-          wrap.appendChild(inner);
-
-          const firstOrig = ch.cloneNode(true) as HTMLElement;
-          Object.assign(firstOrig.style, {
-            display: shuffleDirection === 'up' || shuffleDirection === 'down' ? 'block' : 'inline-block',
-            width: w + 'px',
-            textAlign: 'center'
-          });
-
-          ch.setAttribute('data-orig', '1');
-          Object.assign(ch.style, {
-            display: shuffleDirection === 'up' || shuffleDirection === 'down' ? 'block' : 'inline-block',
-            width: w + 'px',
-            textAlign: 'center'
-          });
-
-          inner.appendChild(firstOrig);
-          for (let k = 0; k < rolls; k++) {
-            const c = ch.cloneNode(true) as HTMLElement;
-            if (scrambleCharset) c.textContent = rand(scrambleCharset);
-            Object.assign(c.style, {
-              display: shuffleDirection === 'up' || shuffleDirection === 'down' ? 'block' : 'inline-block',
-              width: w + 'px',
-              textAlign: 'center'
-            });
-            inner.appendChild(c);
-          }
-          inner.appendChild(ch);
-
-          const steps = rolls + 1;
-
-          if (shuffleDirection === 'right' || shuffleDirection === 'down') {
-            const firstCopy = inner.firstElementChild as HTMLElement | null;
-            const real = inner.lastElementChild as HTMLElement | null;
-            if (real) inner.insertBefore(real, inner.firstChild);
-            if (firstCopy) inner.appendChild(firstCopy);
-          }
-
-          let startX = 0;
-          let finalX = 0;
-          let startY = 0;
-          let finalY = 0;
-
-          if (shuffleDirection === 'right') {
-            startX = -steps * w;
-            finalX = 0;
-          } else if (shuffleDirection === 'left') {
-            startX = 0;
-            finalX = -steps * w;
-          } else if (shuffleDirection === 'down') {
-            startY = -steps * h;
-            finalY = 0;
-          } else if (shuffleDirection === 'up') {
-            startY = 0;
-            finalY = -steps * h;
-          }
-
-          if (shuffleDirection === 'left' || shuffleDirection === 'right') {
-            gsap.set(inner, { x: startX, y: 0, force3D: true });
-            inner.setAttribute('data-start-x', String(startX));
-            inner.setAttribute('data-final-x', String(finalX));
-          } else {
-            gsap.set(inner, { x: 0, y: startY, force3D: true });
-            inner.setAttribute('data-start-y', String(startY));
-            inner.setAttribute('data-final-y', String(finalY));
-          }
-
-          if (colorFrom) (inner.style as any).color = colorFrom;
-          wrappersRef.current.push(wrap);
-        });
-      };
-
-      const inners = () => wrappersRef.current.map(w => w.firstElementChild as HTMLElement);
-
-      const randomizeScrambles = () => {
-        if (!scrambleCharset) return;
-        wrappersRef.current.forEach(w => {
-          const strip = w.firstElementChild as HTMLElement;
-          if (!strip) return;
-          const kids = Array.from(strip.children) as HTMLElement[];
-          for (let i = 1; i < kids.length - 1; i++) {
-            kids[i].textContent = scrambleCharset.charAt(Math.floor(Math.random() * scrambleCharset.length));
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
           }
         });
-      };
+      },
+      { threshold: 0.1 }
+    );
 
-      const cleanupToStill = () => {
-        wrappersRef.current.forEach(w => {
-          const strip = w.firstElementChild as HTMLElement;
-          if (!strip) return;
-          const real = strip.querySelector('[data-orig="1"]') as HTMLElement | null;
-          if (!real) return;
-          strip.replaceChildren(real);
-          strip.style.transform = 'none';
-          strip.style.willChange = 'auto';
-        });
-      };
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [startOnVisible]);
 
-      const play = () => {
-        const strips = inners();
-        if (!strips.length) return;
-
-        playingRef.current = true;
-        const isVertical = shuffleDirection === 'up' || shuffleDirection === 'down';
-
-        const tl = gsap.timeline({
-          smoothChildTiming: true,
-          repeat: loop ? -1 : 0,
-          repeatDelay: loop ? loopDelay : 0,
-          onRepeat: () => {
-            if (scrambleCharset) randomizeScrambles();
-            if (isVertical) {
-              gsap.set(strips, { y: (i, t: HTMLElement) => parseFloat(t.getAttribute('data-start-y') || '0') });
-            } else {
-              gsap.set(strips, { x: (i, t: HTMLElement) => parseFloat(t.getAttribute('data-start-x') || '0') });
-            }
-            onShuffleComplete?.();
-          },
-          onComplete: () => {
-            playingRef.current = false;
-            if (!loop) {
-              cleanupToStill();
-              if (colorTo) gsap.set(strips, { color: colorTo });
-              onShuffleComplete?.();
-              armHover();
-            }
-          }
-        });
-
-        const addTween = (targets: HTMLElement[], at: number) => {
-          const vars: any = {
-            duration,
-            ease,
-            force3D: true,
-            stagger: animationMode === 'evenodd' ? stagger : 0
-          };
-          if (isVertical) {
-            vars.y = (i: number, t: HTMLElement) => parseFloat(t.getAttribute('data-final-y') || '0');
-          } else {
-            vars.x = (i: number, t: HTMLElement) => parseFloat(t.getAttribute('data-final-x') || '0');
-          }
-
-          tl.to(targets, vars, at);
-
-          if (colorFrom && colorTo) {
-            tl.to(targets, { color: colorTo, duration, ease }, at);
-          }
-        };
-
-        if (animationMode === 'evenodd') {
-          const odd = strips.filter((_, i) => i % 2 === 1);
-          const even = strips.filter((_, i) => i % 2 === 0);
-          const oddTotal = duration + Math.max(0, odd.length - 1) * stagger;
-          const evenStart = odd.length ? oddTotal * 0.7 : 0;
-          if (odd.length) addTween(odd, 0);
-          if (even.length) addTween(even, evenStart);
-        } else {
-          strips.forEach(strip => {
-            const d = Math.random() * maxDelay;
-            const vars: any = {
-              duration,
-              ease,
-              force3D: true
-            };
-            if (isVertical) {
-              vars.y = parseFloat(strip.getAttribute('data-final-y') || '0');
-            } else {
-              vars.x = parseFloat(strip.getAttribute('data-final-x') || '0');
-            }
-            tl.to(strip, vars, d);
-            if (colorFrom && colorTo) tl.fromTo(strip, { color: colorFrom }, { color: colorTo, duration, ease }, d);
-          });
-        }
-
-        tlRef.current = tl;
-      };
-
-      const armHover = () => {
-        if (!triggerOnHover || !ref.current) return;
-        removeHover();
-        const handler = () => {
-          if (playingRef.current) return;
-          build();
-          if (scrambleCharset) randomizeScrambles();
-          play();
-        };
-        hoverHandlerRef.current = handler;
-        ref.current.addEventListener('mouseenter', handler);
-      };
-
-      const create = () => {
-        build();
-        if (scrambleCharset) randomizeScrambles();
-        play();
-        armHover();
-        setReady(true);
-      };
-
-      const st = ScrollTrigger.create({
-        trigger: el,
-        start,
-        once: triggerOnce,
-        onEnter: create
+  useEffect(() => {
+    if (showCursor && cursorRef.current) {
+      gsap.set(cursorRef.current, { opacity: 1 });
+      gsap.to(cursorRef.current, {
+        opacity: 0,
+        duration: cursorBlinkDuration,
+        repeat: -1,
+        yoyo: true,
+        ease: 'power2.inOut'
       });
-
-      return () => {
-        st.kill();
-        removeHover();
-        teardown();
-        setReady(false);
-      };
-    },
-    {
-      dependencies: [
-        text,
-        duration,
-        maxDelay,
-        ease,
-        scrollTriggerStart,
-        fontsLoaded,
-        shuffleDirection,
-        shuffleTimes,
-        animationMode,
-        loop,
-        loopDelay,
-        stagger,
-        scrambleCharset,
-        colorFrom,
-        colorTo,
-        triggerOnce,
-        respectReducedMotion,
-        triggerOnHover,
-        onShuffleComplete
-      ],
-      scope: ref
     }
-  );
+  }, [showCursor, cursorBlinkDuration]);
 
-  const commonStyle: React.CSSProperties = useMemo(() => ({ textAlign, ...style }), [textAlign, style]);
-  const classes = useMemo(() => `shuffle-parent ${ready ? 'is-ready' : ''} ${className}`, [ready, className]);
-  const Tag = (tag || 'p') as keyof JSX.IntrinsicElements;
-  return React.createElement(Tag, { ref: ref as any, className: classes, style: commonStyle }, text);
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const currentText = textArray[currentTextIndex];
+    const processedText = reverseMode ? currentText.split('').reverse().join('') : currentText;
+
+    const executeTypingAnimation = () => {
+      if (isDeleting) {
+        if (displayedText === '') {
+          setIsDeleting(false);
+          if (currentTextIndex === textArray.length - 1 && !loop) {
+            return;
+          }
+
+          if (onSentenceComplete) {
+            onSentenceComplete(textArray[currentTextIndex], currentTextIndex);
+          }
+
+          setCurrentTextIndex(prev => (prev + 1) % textArray.length);
+          setCurrentCharIndex(0);
+          timeout = setTimeout(() => {}, pauseDuration);
+        } else {
+          timeout = setTimeout(() => {
+            setDisplayedText(prev => prev.slice(0, -1));
+          }, deletingSpeed);
+        }
+      } else {
+        if (currentCharIndex < processedText.length) {
+          timeout = setTimeout(
+            () => {
+              setDisplayedText(prev => prev + processedText[currentCharIndex]);
+              setCurrentCharIndex(prev => prev + 1);
+            },
+            variableSpeed ? getRandomSpeed() : typingSpeed
+          );
+        } else if (textArray.length >= 1) {
+          if (!loop && currentTextIndex === textArray.length - 1) return;
+          timeout = setTimeout(() => {
+            setIsDeleting(true);
+          }, pauseDuration);
+        }
+      }
+    };
+
+    if (currentCharIndex === 0 && !isDeleting && displayedText === '') {
+      timeout = setTimeout(executeTypingAnimation, initialDelay);
+    } else {
+      executeTypingAnimation();
+    }
+
+    return () => clearTimeout(timeout);
+  }, [
+    currentCharIndex,
+    displayedText,
+    isDeleting,
+    typingSpeed,
+    deletingSpeed,
+    pauseDuration,
+    textArray,
+    currentTextIndex,
+    loop,
+    initialDelay,
+    isVisible,
+    reverseMode,
+    variableSpeed,
+    onSentenceComplete
+  ]);
+
+  const shouldHideCursor =
+    hideCursorWhileTyping && (currentCharIndex < textArray[currentTextIndex].length || isDeleting);
+
+  return createElement(
+    Component,
+    {
+      ref: containerRef,
+      className: `text-type ${className}`,
+      ...props
+    },
+    <span className="text-type__content" style={{ color: getCurrentTextColor() || 'inherit' }}>
+      {displayedText}
+    </span>,
+    showCursor && (
+      <span
+        ref={cursorRef}
+        className={`text-type__cursor ${cursorClassName} ${shouldHideCursor ? 'text-type__cursor--hidden' : ''}`}
+      >
+        {cursorCharacter}
+      </span>
+    )
+  );
 };
 
-export default Shuffle;
+export default TextType;

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import Shuffle from './letters';
+import TextType from './letters';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { GitBranch, Users, FileText, BarChart3, Shield, Zap, Sparkles } from "lucide-react"
@@ -44,21 +44,20 @@ export default function LandingPage() {
               <Sparkles className="h-4 w-4" />
               Built for fair group grading
             </div>
-              <Shuffle
-                    text="Fair Grading for Group Projects"
-                    shuffleDirection="right"
-                    duration={0.35}
-                    animationMode="evenodd"
-                    shuffleTimes={1}
-                    ease="power3.out"
-                    stagger={0.03}
-                    threshold={0.1}
-                    triggerOnce={true}
-                    triggerOnHover
-                    respectReducedMotion={true}
-                    loop={false}
-                    loopDelay={0}
-                  />
+                <TextType 
+                text={["Fair Grading for your Group Projects!"]}
+                typingSpeed={75}
+                pauseDuration={1500}
+                showCursor
+                cursorCharacter="_"
+                deletingSpeed={50}
+                variableSpeedEnabled={false}
+                variableSpeedMin={60}
+                variableSpeedMax={120}
+                cursorBlinkDuration={0.5}
+                className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-5xl"
+              />
+
 
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground lg:mx-0">
               tired of working more than everyone else but still getting same score as them? FairGroup is here to save the day.
