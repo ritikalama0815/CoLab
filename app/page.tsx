@@ -135,7 +135,7 @@ export default function LandingPage() {
                   outlineLines={[2]}
                   lineClassName="text-white"
                   outlineStyle={{
-                    WebkitTextStroke: "1.5px rgba(0,163,139,0.6)",
+                    WebkitTextStroke: "1.5px rgba(194,251,239,0.85)",
                     color: "transparent",
                   }}
                   style={{
@@ -286,24 +286,8 @@ export default function LandingPage() {
               </h2>
               <div style={{ position: "absolute", bottom: 0, left: 0, width: "40%", height: 3, background: "linear-gradient(90deg, #00a38b, transparent)" }} />
             </div>
-<<<<<<< HEAD
-                <TextType 
-                text={["Fair Grading for your Group Projects!"]}
-                typingSpeed={75}
-                pauseDuration={1500}
-                showCursor
-                cursorCharacter="_"
-                deletingSpeed={50}
-                variablespeedenabled={false}
-                variableSpeedMin={60}
-                variableSpeedMax={120}
-                cursorBlinkDuration={0.5}
-                className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-5xl"
-              />
-=======
           </motion.div>
         </div>
->>>>>>> 255ee2fbca49833994bcc1a595c1fbd75e814fa7
 
         {/* FlowingMenu — full width */}
         <motion.div

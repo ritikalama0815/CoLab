@@ -1,6 +1,6 @@
-# TeamTrack for **TruHacks 2026**
+# CoLab for **TruHacks 2026**
 
-TeamTrack is a web app for **fairer group-project grading**. Instructors create projects and groups; students collaborate on GitHub repos, shared Google Docs, and in-app chat. The app tracks contributions (commits, self-reported doc work), and **instructors can generate contribution reports** with charts and **Gemini**-written overviews and suggested grades because we are all tired of people who contribute less but get same grades as us.
+CoLab is a web app for **fairer group-project grading**. Instructors create projects and groups; students collaborate on GitHub repos, shared Google Docs, and in-app chat. The app tracks contributions (commits, self-reported doc work), and **instructors can generate contribution reports** with charts and **Gemini**-written overviews and suggested grades because we are all tired of people who contribute less but get same grades as us.
 
 
 ## Tech stack
