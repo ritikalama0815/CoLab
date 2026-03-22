@@ -135,7 +135,7 @@ export default function LandingPage() {
                   outlineLines={[2]}
                   lineClassName="text-white"
                   outlineStyle={{
-                    WebkitTextStroke: "1.5px rgba(0,163,139,0.6)",
+                    WebkitTextStroke: "1.5px rgba(194,251,239,0.85)",
                     color: "transparent",
                   }}
                   style={{

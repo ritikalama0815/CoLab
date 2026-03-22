@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 
 interface TypingTextProps {
   lines: string[]
@@ -24,38 +24,37 @@ export default function TypingText({
   style,
 }: TypingTextProps) {
   const [displayed, setDisplayed] = useState<string[]>(lines.map(() => ""))
-  const [currentLine, setCurrentLine] = useState(0)
+  const [currentLine, setCurrentLine] = useState(-1)
   const [currentChar, setCurrentChar] = useState(0)
   const [showCursor, setShowCursor] = useState(true)
-  const started = useRef(false)
+  const [visible, setVisible] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const el = ref.current
+    if (!el) return
     const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting && !started.current) started.current = true },
-      { threshold: 0.3 }
+      ([e]) => { if (e.isIntersecting) setVisible(true) },
+      { threshold: 0.2 }
     )
-    if (ref.current) obs.observe(ref.current)
+    obs.observe(el)
     return () => obs.disconnect()
   }, [])
 
   useEffect(() => {
-    if (!started.current) {
-      const check = setInterval(() => {
-        if (started.current) {
-          clearInterval(check)
-          setCurrentLine(0)
-          setCurrentChar(0)
-        }
-      }, 100)
-      return () => clearInterval(check)
+    if (visible && currentLine === -1) {
+      setCurrentLine(0)
+      setCurrentChar(0)
     }
-  }, [])
+  }, [visible, currentLine])
 
   useEffect(() => {
-    if (currentLine >= lines.length) {
-      const cursorBlink = setInterval(() => setShowCursor(p => !p), 530)
-      return () => clearInterval(cursorBlink)
+    if (currentLine < 0 || currentLine >= lines.length) {
+      if (currentLine >= lines.length) {
+        const cursorBlink = setInterval(() => setShowCursor(p => !p), 530)
+        return () => clearInterval(cursorBlink)
+      }
+      return
     }
 
     const line = lines[currentLine]
@@ -82,13 +81,14 @@ export default function TypingText({
   }, [currentLine, currentChar, lines, typingSpeed, lineDelay])
 
   const isOutline = (i: number) => outlineLines.includes(i)
+  const activeLine = currentLine < 0 ? 0 : Math.min(currentLine, lines.length - 1)
 
   return (
     <div ref={ref} className={className} style={style}>
       {displayed.map((text, i) => (
         <div key={i} className={lineClassName} style={isOutline(i) ? outlineStyle : undefined}>
           {text}
-          {i === Math.min(currentLine, lines.length - 1) && (
+          {i === activeLine && (
             <span
               style={{
                 display: "inline-block",
