@@ -131,7 +131,7 @@ export function SignUpForm({ role }: { role: SignUpRole }) {
                     <Input
                       id="fullName"
                       type="text"
-                      placeholder="John Doe"
+                      placeholder="Your Name"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
